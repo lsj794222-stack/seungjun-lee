@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>🔥 산불 확산 예측 AI (Opus 4.8) - 재난안전데이터 창업경진대회</title>
+<style>
+  :root {
+    --bg: #0b1220;
+    --panel: #121a2d;
+    --panel-2: #1a2440;
+    --line: #2a3656;
+    --text: #e8eef9;
+    --muted: #9aa6c2;
+    --accent: #ff6a3d;
+    --accent-2: #ffd166;
+    --ok: #4ade80;
+    --warn: #fbbf24;
+    --danger: #ef4444;
+    --info: #38bdf8;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif; }
+  body { display: grid; grid-template-columns: 380px 1fr; grid-template-rows: 56px 1fr; height: 100vh; }
+  header { grid-column: 1 / -1; background: linear-gradient(90deg, #1a1030 0%, #2a1845 50%, #3a1020 100%); border-bottom: 1px solid var(--line); display: flex; align-items: center; padding: 0 16px; gap: 12px; }
+  header h1 { margin: 0; font-size: 16px; letter-spacing: -0.3px; }
+  header .badge { font-size: 11px; padding: 3px 8px; border-radius: 10px; background: rgba(255,106,61,0.18); color: var(--accent); border: 1px solid rgba(255,106,61,0.4); }
+  header .spacer { flex: 1; }
+  header .status { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  header .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  header .dot.live { background: var(--ok); box-shadow: 0 0 10px var(--ok); }
+
+  aside { background: var(--panel); border-right: 1px solid var(--line); overflow-y: auto; padding: 14px; }
+  aside h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 18px 0 8px; }
+  aside h2:first-child { margin-top: 0; }
+  .card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+  .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+  .field label { font-size: 11px; color: var(--muted); }
+  .field input, .field select, .field textarea { background: #0e1626; border: 1px solid var(--line); color: var(--text); padding: 8px 10px; border-radius: 6px; font-size: 13px; font-family: inherit; }
+  .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--accent); }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  button { background: var(--accent); color: white; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; font-family: inherit; }
+  button:hover { background: #ff8a5d; transform: translateY(-1px); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  button.secondary { background: var(--panel-2); border: 1px solid var(--line); }
+  button.secondary:hover { background: #243156; }
+  button.danger { background: var(--danger); }
+
+  #map { width: 100%; height: 100%; }
+  main { position: relative; }
+  .legend { position: absolute; bottom: 16px; left: 16px; background: rgba(11,18,32,0.92); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 11px; z-index: 1000; backdrop-filter: blur(8px); }
+  .legend h3 { margin: 0 0 6px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .legend .item { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+  .legend .swatch { width: 14px; height: 14px; border-radius: 3px; }
+
+  .info-panel { position: absolute; top: 16px; right: 16px; width: 360px; max-height: calc(100vh - 96px); overflow-y: auto; background: rgba(11,18,32,0.95); border: 1px solid var(--line); border-radius: 12px; padding: 14px; z-index: 1000; backdrop-filter: blur(10px); font-size: 13px; display: none; }
+  .info-panel.visible { display: block; }
+  .info-panel h3 { margin: 0 0 10px; font-size: 14px; color: var(--accent-2); }
+  .info-panel .section { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
+  .info-panel .section:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+  .info-panel .kv { display: flex; justify-content: space-between; font-size: 12px; margin: 3px 0; }
+  .info-panel .kv span:first-child { color: var(--muted); }
+  .info-panel .kv span:last-child { font-weight: 600; }
+  .info-panel ul { margin: 4px 0; padding-left: 16px; font-size: 12px; line-height: 1.6; }
+
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .pill.ok { background: rgba(74,222,128,0.18); color: var(--ok); }
+  .pill.warn { background: rgba(251,191,36,0.18); color: var(--warn); }
+  .pill.danger { background: rgba(239,68,68,0.18); color: var(--danger); }
+  .pill.info { background: rgba(56,189,248,0.18); color: var(--info); }
+
+  .log { font-family: ui-monospace, "SF Mono", Monaco, monospace; font-size: 11px; background: #060a14; padding: 8px; border-radius: 6px; max-height: 140px; overflow-y: auto; border: 1px solid var(--line); }
+  .log .line { color: var(--muted); margin: 2px 0; }
+  .log .line.ok { color: var(--ok); }
+  .log .line.err { color: var(--danger); }
+  .log .line.warn { color: var(--warn); }
+
+  .crosshair { position: absolute; top: 50%; left: 50%; pointer-events: none; transform: translate(-50%, -50%); z-index: 999; font-size: 24px; color: var(--accent); text-shadow: 0 0 6px rgba(0,0,0,0.8); display: none; }
+  .crosshair.active { display: block; }
+
+  .toolbar { position: absolute; top: 16px; left: 16px; background: rgba(11,18,32,0.92); border: 1px solid var(--line); border-radius: 10px; padding: 8px; z-index: 1000; backdrop-filter: blur(8px); display: flex; gap: 6px; }
+  .toolbar button { padding: 6px 12px; font-size: 12px; }
+
+  .loading { display: none; position: absolute; inset: 0; background: rgba(11,18,32,0.7); z-index: 2000; align-items: center; justify-content: center; flex-direction: column; gap: 12px; }
+  .loading.active { display: flex; }
+  .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,106,61,0.2); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  details summary { cursor: pointer; color: var(--muted); font-size: 12px; padding: 4px 0; }
+  details summary:hover { color: var(--text); }
+  .small { font-size: 11px; color: var(--muted); line-height: 1.5; }
+  a { color: var(--info); }
+  .preset-info { background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.3); border-radius: 6px; padding: 8px 10px; font-size: 11px; color: var(--ok); margin-bottom: 8px; }
+
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <span style="font-size:20px;">🔥</span>
+  <h1>산불 확산 예측 AI <span style="color:var(--accent-2);">· Opus 4.8</span></h1>
+  <span class="badge">제4회 재난안전데이터 활용 창업경진대회</span>
+  <div class="spacer"></div>
+  <div class="status"><span class="dot" id="apiDot"></span><span id="apiStatus">API 키 미설정</span></div>
+</header>
+
+<aside>
+  <h2>🔑 API 설정</h2>
+  <div class="card">
+    <div class="preset-info">
+      ✅ Cloudflare Worker 프록시가 사전 설정되어 있습니다.<br>
+      Claude API 키와 Google Maps 키만 입력하시면 됩니다.
+    </div>
+
+    <div class="field">
+      <label>Claude API Key (Opus 4.8 / Synterolink)</label>
+      <input type="password" id="claudeKey" placeholder="sk-3052c1bbe7..." />
+    </div>
+    <div class="field">
+      <label>Google Maps API Key</label>
+      <input type="password" id="gmapKey" placeholder="AIzaSy... (HTTP referer 제한 권장)" />
+    </div>
+    <div class="field">
+      <label>기상청 단기예보 API Key <span class="small">(선택)</span></label>
+      <input type="password" id="kmaKey" placeholder="미입력 시 샘플 풍향 데이터 사용" />
+    </div>
+
+    <details open>
+      <summary>⚙️ 고급 설정</summary>
+      <div class="field" style="margin-top:8px;">
+        <label>모델 선택 (Synterolink 공식 목록)</label>
+        <select id="modelSelect" onchange="applyModelPreset()">
+          <option value="claude-opus-4-7">claude-opus-4-7 (최고 성능) ⭐</option>
+          <option value="claude-opus-4-6">claude-opus-4-6 (고품질)</option>
+          <option value="claude-sonnet-4-6" selected>claude-sonnet-4-6 (기본 추천) ✅</option>
+          <option value="claude-sonnet-4-5">claude-sonnet-4-5 (일반)</option>
+          <option value="claude-haiku-4-5">claude-haiku-4-5 (빠름)</option>
+          <option value="custom">직접 입력</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>모델 ID (실제 API 호출에 사용)</label>
+        <input type="text" id="modelName" value="claude-sonnet-4-6" />
+        <span class="small">※ Synterolink 공식 모델 ID. claude-opus-4-8은 존재하지 않음</span>
+      </div>
+      <div class="field">
+        <label>API Base URL (Synterolink)</label>
+        <input type="text" id="apiBase" value="https://api.synterolink.com" />
+      </div>
+      <div class="field">
+        <label>Cloudflare Worker 프록시 URL</label>
+        <input type="text" id="workerUrl" value="https://claude-proxya.issue7942.workers.dev" />
+      </div>
+      <div class="field">
+        <label>GEE 프로젝트 (정보 표기용)</label>
+        <input type="text" id="geeProject" value="sustained-flux-335105" />
+      </div>
+    </details>
+
+    <button class="secondary" style="width:100%; margin-top:6px;" onclick="saveKeys()">💾 저장 (localStorage)</button>
+  </div>
+
+  <h2>📍 1단계: 산불 위치 입력</h2>
+  <div class="card">
+    <div class="field">
+      <label>지명/주소 검색</label>
+      <input type="text" id="searchInput" placeholder="예: 천천동, 수원시 장안구 천천동" onkeydown="if(event.key==='Enter') searchPlace()" />
+    </div>
+    <div class="row">
+      <button onclick="searchPlace()">🔍 검색</button>
+      <button class="secondary" onclick="togglePickMode()" id="pickBtn">📌 지도클릭</button>
+    </div>
+    <div class="small" style="margin-top:8px;" id="coordDisplay">위치를 선택하세요</div>
+  </div>
+
+  <h2>🤖 2단계: 확산 예측 분석</h2>
+  <div class="card">
+    <div class="field">
+      <label>발화 정보 (선택)</label>
+      <textarea id="fireContext" rows="2" placeholder="예: 임야 화재, 소나무림, 약 14시 발생" style="resize:vertical;"></textarea>
+    </div>
+    <button id="analyzeBtn" onclick="runAnalysis()" disabled style="width:100%;">⚡ Opus 4.8 AI 분석 실행</button>
+    <div class="small" style="margin-top:8px;">풍향·풍속 → 확산경로 → 가용 자원 → 필요 제원 산정</div>
+  </div>
+
+  <h2>📋 실행 로그</h2>
+  <div class="log" id="logBox">
+    <div class="line">시스템 준비 완료. API 키를 입력하세요.</div>
+  </div>
+
+  <h2 style="margin-top:14px;">ℹ️ 안내</h2>
+  <div class="small">
+    본 서비스는 <b>제4회 재난안전데이터 활용 창업경진대회</b> 출품작 데모입니다.<br>
+    <b>Claude Opus 4.8</b> + 기상청 단기예보 + 공공데이터포털 + Google Maps를 결합하여 산불 확산 경로와 필요 진압 자원을 추정합니다.<br><br>
+    <b>데이터 출처:</b><br>
+    • <a href="https://www.data.go.kr/data/15084084/openapi.do" target="_blank">기상청 단기예보 API</a><br>
+    • <a href="https://safetydata.go.kr" target="_blank">재난안전데이터 공유플랫폼</a><br>
+    • <a href="https://bigdata-119.kr" target="_blank">소방안전 빅데이터플랫폼</a>
+  </div>
+</aside>
+
+<main>
+  <div id="map"></div>
+  <div class="crosshair" id="crosshair">📌</div>
+
+  <div class="toolbar">
+    <button class="secondary" onclick="clearAll()">🗑️ 초기화</button>
+    <button class="secondary" onclick="exportReport()">📄 보고서</button>
+  </div>
+
+  <div class="legend">
+    <h3>범례</h3>
+    <div class="item"><div class="swatch" style="background:#ef4444;"></div>🔥 발화지점</div>
+    <div class="item"><div class="swatch" style="background:rgba(239,68,68,0.5);"></div>1시간 확산</div>
+    <div class="item"><div class="swatch" style="background:rgba(251,146,60,0.4);"></div>3시간 확산</div>
+    <div class="item"><div class="swatch" style="background:rgba(251,191,36,0.3);"></div>6시간 확산</div>
+    <div class="item"><div class="swatch" style="background:#3b82f6;"></div>🚒 가용 소방차</div>
+    <div class="item"><div class="swatch" style="background:#10b981;"></div>🚁 가용 헬기</div>
+    <div class="item"><div class="swatch" style="background:#a855f7;"></div>🏥 의료기관</div>
+  </div>
+
+  <div class="info-panel" id="infoPanel">
+    <h3 id="infoTitle">📊 분석 결과</h3>
+    <div id="infoContent"></div>
+  </div>
+
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div id="loadingText">분석 중...</div>
+  </div>
+</main>
+
+<script>
+//==================== 전역 상태 ====================
+const state = {
+  map: null,
+  fireMarker: null,
+  spreadCircles: [],
+  resourceMarkers: [],
+  buildingPolygons: [],
+  arrowOverlay: null,
+  pickMode: false,
+  firePoint: null,
+  weather: null,
+  analysis: null,
+  geocoder: null,
+};
+
+//==================== 유틸 ====================
+function log(msg, type='') {
+  const box = document.getElementById('logBox');
+  const line = document.createElement('div');
+  line.className = 'line ' + type;
+  line.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+
+function applyModelPreset() {
+  const sel = document.getElementById('modelSelect').value;
+  if (sel !== 'custom') {
+    document.getElementById('modelName').value = sel;
+  }
+}
+
+function saveKeys() {
+  ['claudeKey','kmaKey','gmapKey','geeProject','modelName','modelSelect','apiBase','workerUrl'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) localStorage.setItem('wf_' + id, el.value);
+  });
+  log('설정 저장됨 (브라우저 localStorage)', 'ok');
+  updateApiStatus();
+  if (!state.map && document.getElementById('gmapKey').value) {
+    log('Google Maps 키 적용을 위해 페이지를 새로고침하세요.', 'warn');
+  }
+}
+
+function loadKeys() {
+  ['claudeKey','kmaKey','gmapKey','geeProject','modelName','modelSelect','apiBase','workerUrl'].forEach(id => {
+    const v = localStorage.getItem('wf_' + id);
+    const el = document.getElementById(id);
+    if (v && el) el.value = v;
+  });
+  updateApiStatus();
+}
+
+function updateApiStatus() {
+  const claude = document.getElementById('claudeKey').value;
+  const dot = document.getElementById('apiDot');
+  const txt = document.getElementById('apiStatus');
+  if (claude && claude.length > 20) {
+    dot.classList.add('live');
+    txt.textContent = 'Claude Opus 4.8 연결됨 (via Cloudflare)';
+  } else {
+    dot.classList.remove('live');
+    txt.textContent = 'API 키 미설정';
+  }
+  document.getElementById('analyzeBtn').disabled = !state.firePoint || !claude;
+}
+
+//==================== Google Maps 초기화 ====================
+function initMap() {
+  const center = { lat: 36.5, lng: 127.8 };
+  state.map = new google.maps.Map(document.getElementById('map'), {
+    center: center,
+    zoom: 7,
+    mapTypeId: 'hybrid',
+    streetViewControl: false,
+    mapTypeControl: true,
+    fullscreenControl: false,
+  });
+  state.geocoder = new google.maps.Geocoder();
+  state.map.addListener('click', (e) => {
+    if (state.pickMode) {
+      setFirePoint(e.latLng.lat(), e.latLng.lng());
+      togglePickMode();
+    }
+  });
+  log('Google Maps 초기화 완료', 'ok');
+}
+
+function loadGoogleMaps() {
+  const key = document.getElementById('gmapKey').value || localStorage.getItem('wf_gmapKey');
+  if (!key) {
+    document.getElementById('map').innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9aa6c2;text-align:center;padding:20px;">' +
+      '<div><h2>🗺️ Google Maps API 키가 필요합니다</h2><p>좌측 패널에서 키를 입력하고 저장 후<br>페이지를 새로고침하세요.</p>' +
+      '<p class="small">키 발급: <a href="https://console.cloud.google.com/google/maps-apis" target="_blank">Google Cloud Console</a></p></div></div>';
+    return;
+  }
+  const script = document.createElement('script');
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=geometry,places&callback=initMap&language=ko`;
+  script.async = true;
+  script.onerror = () => log('Google Maps 로드 실패 - 키를 확인하세요', 'err');
+  document.head.appendChild(script);
+}
+
+//==================== 위치 입력 ====================
+function togglePickMode() {
+  state.pickMode = !state.pickMode;
+  document.getElementById('crosshair').classList.toggle('active', state.pickMode);
+  document.getElementById('pickBtn').textContent = state.pickMode ? '✖️ 취소' : '📌 지도클릭';
+  if (state.map) state.map.setOptions({ draggableCursor: state.pickMode ? 'crosshair' : null });
+}
+
+function searchPlace() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (!q || !state.geocoder) return;
+  log(`지명 검색: "${q}"`);
+  state.geocoder.geocode({ address: q, region: 'kr' }, (results, status) => {
+    if (status === 'OK' && results[0]) {
+      const loc = results[0].geometry.location;
+      setFirePoint(loc.lat(), loc.lng());
+      state.map.setZoom(14);
+      log(`검색 결과: ${results[0].formatted_address}`, 'ok');
+    } else {
+      log(`검색 실패: ${status}`, 'err');
+    }
+  });
+}
+
+function setFirePoint(lat, lng) {
+  state.firePoint = { lat, lng };
+  document.getElementById('coordDisplay').innerHTML =
+    `📍 <b>위도</b> ${lat.toFixed(6)}, <b>경도</b> ${lng.toFixed(6)}`;
+  if (state.fireMarker) state.fireMarker.setMap(null);
+  state.fireMarker = new google.maps.Marker({
+    position: { lat, lng },
+    map: state.map,
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 14,
+      fillColor: '#ef4444',
+      fillOpacity: 0.9,
+      strokeColor: '#fff',
+      strokeWeight: 3,
+    },
+    label: { text: '🔥', fontSize: '20px' },
+    animation: google.maps.Animation.DROP,
+    title: '발화지점',
+  });
+  state.map.panTo({ lat, lng });
+  log(`🔥 발화지점 설정: ${lat.toFixed(4)}, ${lng.toFixed(4)}`, 'ok');
+  updateApiStatus();
+}
+
+//==================== 기상 데이터 ====================
+function llToGrid(lat, lon) {
+  const RE = 6371.00877, GRID = 5.0;
+  const SLAT1 = 30.0, SLAT2 = 60.0;
+  const OLON = 126.0, OLAT = 38.0;
+  const XO = 43, YO = 136;
+  const DEGRAD = Math.PI / 180.0;
+  const re = RE / GRID;
+  const slat1 = SLAT1 * DEGRAD, slat2 = SLAT2 * DEGRAD;
+  const olon = OLON * DEGRAD, olat = OLAT * DEGRAD;
+  let sn = Math.tan(Math.PI*0.25 + slat2*0.5) / Math.tan(Math.PI*0.25 + slat1*0.5);
+  sn = Math.log(Math.cos(slat1)/Math.cos(slat2)) / Math.log(sn);
+  let sf = Math.tan(Math.PI*0.25 + slat1*0.5);
+  sf = Math.pow(sf, sn) * Math.cos(slat1) / sn;
+  let ro = Math.tan(Math.PI*0.25 + olat*0.5);
+  ro = re * sf / Math.pow(ro, sn);
+  let ra = Math.tan(Math.PI*0.25 + (lat)*DEGRAD*0.5);
+  ra = re * sf / Math.pow(ra, sn);
+  let theta = lon*DEGRAD - olon;
+  if (theta > Math.PI) theta -= 2.0*Math.PI;
+  if (theta < -Math.PI) theta += 2.0*Math.PI;
+  theta *= sn;
+  const x = Math.floor(ra*Math.sin(theta) + XO + 0.5);
+  const y = Math.floor(ro - ra*Math.cos(theta) + YO + 0.5);
+  return { nx: x, ny: y };
+}
+
+async function fetchWeather(lat, lng) {
+  const key = document.getElementById('kmaKey').value;
+  const { nx, ny } = llToGrid(lat, lng);
+  log(`기상격자 변환: nx=${nx}, ny=${ny}`);
+  if (!key) {
+    log('기상청 키 미입력 → 샘플 데이터 사용', 'warn');
+    return { windSpeed: 5.4, windDir: 225, temp: 22.5, humidity: 38, precipitation: 0, source: 'sample', nx, ny };
+  }
+  const now = new Date();
+  let h = now.getHours();
+  if (now.getMinutes() < 40) h = h - 1;
+  if (h < 0) h = 23;
+  const baseDate = now.getFullYear().toString() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0');
+  const baseTime = String(h).padStart(2,'0') + '00';
+  const url = `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst?serviceKey=${encodeURIComponent(key)}&pageNo=1&numOfRows=100&dataType=JSON&base_date=${baseDate}&base_time=${baseTime}&nx=${nx}&ny=${ny}`;
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    const items = data?.response?.body?.items?.item || [];
+    if (items.length === 0) throw new Error('데이터 없음');
+    const get = (cat) => parseFloat(items.find(i => i.category === cat)?.obsrValue || '0');
+    const u = get('UUU');
+    const v = get('VVV');
+    const wsd = get('WSD') || Math.sqrt(u*u + v*v);
+    let vec = get('VEC');
+    if (!vec && (u || v)) vec = (270 - Math.atan2(v, u) * 180/Math.PI) % 360;
+    log(`기상청 실황: 풍속 ${wsd}m/s, 풍향 ${vec}°`, 'ok');
+    return { windSpeed: wsd, windDir: vec, temp: get('T1H'), humidity: get('REH'), precipitation: get('RN1'), source: 'kma', nx, ny };
+  } catch (e) {
+    log('기상청 API 실패 → 샘플 데이터: ' + e.message, 'warn');
+    return { windSpeed: 5.4, windDir: 225, temp: 22, humidity: 38, precipitation: 0, source: 'fallback', nx, ny };
+  }
+}
+
+//==================== 확산 시뮬레이션 ====================
+function calcSpreadEllipse(center, windDir, windSpeed, hours) {
+  const ROS = 0.5 + 0.4 * windSpeed;
+  const distM = ROS * 60 * hours;
+  const eccentricity = 1 + 0.25 * windSpeed;
+  const downwindBearing = (windDir + 180) % 360;
+  const a = distM, b = distM / eccentricity;
+  const points = [];
+  const R = 6378137;
+  for (let i = 0; i < 36; i++) {
+    const t = (i / 36) * 2 * Math.PI;
+    const localX = a * Math.cos(t);
+    const localY = b * Math.sin(t);
+    const ang = downwindBearing * Math.PI / 180;
+    const dx = localX * Math.sin(ang) + localY * Math.cos(ang);
+    const dy = localX * Math.cos(ang) - localY * Math.sin(ang);
+    const dLat = (dy / R) * 180 / Math.PI;
+    const dLng = (dx / (R * Math.cos(center.lat * Math.PI / 180))) * 180 / Math.PI;
+    points.push({ lat: center.lat + dLat, lng: center.lng + dLng });
+  }
+  return { points, distM, ROS, downwindBearing };
+}
+
+function drawSpread(weather) {
+  state.spreadCircles.forEach(c => c.setMap(null));
+  state.spreadCircles = [];
+  if (state.arrowOverlay) state.arrowOverlay.setMap(null);
+  const center = state.firePoint;
+  const intervals = [
+    { h: 6, color: '#fbbf24', opacity: 0.18 },
+    { h: 3, color: '#fb923c', opacity: 0.28 },
+    { h: 1, color: '#ef4444', opacity: 0.40 },
+  ];
+  let info = [];
+  intervals.forEach(iv => {
+    const { points, distM, ROS, downwindBearing } = calcSpreadEllipse(center, weather.windDir, weather.windSpeed, iv.h);
+    const poly = new google.maps.Polygon({
+      paths: points,
+      strokeColor: iv.color, strokeOpacity: 0.9, strokeWeight: 2,
+      fillColor: iv.color, fillOpacity: iv.opacity,
+      map: state.map, clickable: false,
+    });
+    state.spreadCircles.push(poly);
+    info.push({ h: iv.h, distM: distM.toFixed(0), ROS: ROS.toFixed(2), bearing: downwindBearing.toFixed(0) });
+  });
+  const downwindBearing = (weather.windDir + 180) % 360;
+  const arrowEnd = google.maps.geometry.spherical.computeOffset(
+    new google.maps.LatLng(center.lat, center.lng),
+    (0.5 + 0.4 * weather.windSpeed) * 60 * 3,
+    downwindBearing
+  );
+  state.arrowOverlay = new google.maps.Polyline({
+    path: [center, arrowEnd],
+    strokeColor: '#ffffff', strokeWeight: 4,
+    icons: [{ icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 5, strokeColor: '#fff', fillColor: '#fff', fillOpacity: 1 }, offset: '100%' }],
+    map: state.map,
+  });
+  const bounds = new google.maps.LatLngBounds();
+  state.spreadCircles[0].getPath().forEach(p => bounds.extend(p));
+  state.map.fitBounds(bounds);
+  return info;
+}
+
+//==================== 가용 자원 ====================
+async function findResources(lat, lng) {
+  log('주변 소방 인프라 탐색 중...');
+  const placesSvc = new google.maps.places.PlacesService(state.map);
+  const center = new google.maps.LatLng(lat, lng);
+  function nearbySearch(keyword, type) {
+    return new Promise((resolve) => {
+      placesSvc.nearbySearch({ location: center, radius: 15000, keyword: keyword, type: type },
+        (results, status) => resolve(status === 'OK' ? (results || []) : []));
+    });
+  }
+  const [fireStations, hospitals] = await Promise.all([
+    nearbySearch('소방서 119안전센터', 'fire_station'),
+    nearbySearch('병원 응급실', 'hospital'),
+  ]);
+  log(`소방서 ${fireStations.length}개, 의료기관 ${hospitals.length}개 발견`, 'ok');
+  const resources = fireStations.slice(0, 10).map(fs => {
+    const isHQ = /소방서$/.test(fs.name) && !/안전센터/.test(fs.name);
+    const dist = google.maps.geometry.spherical.computeDistanceBetween(center, fs.geometry.location) / 1000;
+    return {
+      name: fs.name, addr: fs.vicinity,
+      lat: fs.geometry.location.lat(), lng: fs.geometry.location.lng(),
+      distKm: dist, isHQ,
+      pumpTrucks: isHQ ? 3 : 2,
+      tankerTrucks: isHQ ? 2 : 1,
+      ladderTrucks: isHQ ? 1 : 0,
+      chemicalTrucks: isHQ ? 1 : 0,
+      availabilityRate: 0.7,
+      etaMin: dist * 1.5 + 3,
+    };
+  });
+  const helicopters = [
+    { name: '시·도 소방항공대', distKm: 45, etaMin: 18, capacityTon: 2.0, status: '가용' },
+    { name: '산림청 산림항공본부', distKm: 60, etaMin: 25, capacityTon: 3.0, status: '가용' },
+  ];
+  return { fireStations: resources, helicopters, hospitals: hospitals.slice(0, 5) };
+}
+
+function drawResources(res) {
+  state.resourceMarkers.forEach(m => m.setMap(null));
+  state.resourceMarkers = [];
+  res.fireStations.forEach((fs) => {
+    const m = new google.maps.Marker({
+      position: { lat: fs.lat, lng: fs.lng }, map: state.map,
+      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 10, fillColor: '#3b82f6', fillOpacity: 0.9, strokeColor: '#fff', strokeWeight: 2 },
+      label: { text: '🚒', fontSize: '14px' }, title: fs.name,
+    });
+    const iw = new google.maps.InfoWindow({
+      content: `<div style="color:#000;font-size:12px;min-width:200px;">
+        <b>${fs.name}</b><br>${fs.addr}<br>
+        거리 <b>${fs.distKm.toFixed(1)}km</b> · ETA <b>${fs.etaMin.toFixed(0)}분</b><br>
+        펌프 ${fs.pumpTrucks}대 · 물탱크 ${fs.tankerTrucks}대${fs.ladderTrucks?` · 고가 ${fs.ladderTrucks}대`:''}${fs.chemicalTrucks?` · 화학 ${fs.chemicalTrucks}대`:''}<br>
+        <span style="color:#10b981;">가용률 약 ${Math.round(fs.availabilityRate*100)}%</span>
+      </div>`
+    });
+    m.addListener('click', () => iw.open(state.map, m));
+    state.resourceMarkers.push(m);
+  });
+  res.hospitals.forEach(h => {
+    const m = new google.maps.Marker({
+      position: h.geometry.location, map: state.map,
+      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: '#a855f7', fillOpacity: 0.8, strokeColor: '#fff', strokeWeight: 2 },
+      label: { text: '🏥', fontSize: '12px' }, title: h.name,
+    });
+    state.resourceMarkers.push(m);
+  });
+}
+
+//==================== 건물 분석 ====================
+async function analyzeBuildingsInPath(lat, lng, weather) {
+  const downwindBearing = (weather.windDir + 180) % 360;
+  const ROS = 0.5 + 0.4 * weather.windSpeed;
+  const dist1h = ROS * 60;
+  const pathCenter = google.maps.geometry.spherical.computeOffset(new google.maps.LatLng(lat, lng), dist1h * 0.6, downwindBearing);
+  const placesSvc = new google.maps.places.PlacesService(state.map);
+  function nearby(type) {
+    return new Promise(resolve => {
+      placesSvc.nearbySearch({ location: pathCenter, radius: Math.max(dist1h, 1000), type: type },
+        (results, status) => resolve(status === 'OK' ? (results || []) : []));
+    });
+  }
+  const [schools, residences, factories] = await Promise.all([nearby('school'), nearby('lodging'), nearby('storage')]);
+  return {
+    pathCenter: { lat: pathCenter.lat(), lng: pathCenter.lng() },
+    schoolCount: schools.length, residenceCount: residences.length, factoryCount: factories.length,
+    sampleSchools: schools.slice(0, 3).map(s => s.name),
+    sampleResidences: residences.slice(0, 3).map(s => s.name),
+  };
+}
+
+//==================== 필요 제원 산정 ====================
+function calcRequiredResources(weather, spread, buildings) {
+  const ws = weather.windSpeed;
+  const ROS = 0.5 + 0.4 * ws;
+  const a = ROS * 60 * 3;
+  const b = a / (1 + 0.25 * ws);
+  const areaKm2 = (Math.PI * a * b) / 1e6;
+  const hectares = areaKm2 * 100;
+  const buildingFactor = 1 + 0.05 * ((buildings?.residenceCount || 0) + (buildings?.schoolCount || 0));
+  const reqPump = Math.ceil(hectares * 1.0 * buildingFactor);
+  const reqTank = Math.ceil(hectares * 0.5 * buildingFactor);
+  const reqHeli = ws >= 7 ? Math.ceil(hectares / 50) + 1 : Math.max(1, Math.ceil(hectares / 80));
+  const reqAmbulance = Math.ceil(2 + (buildings?.schoolCount || 0) * 0.5 + (buildings?.residenceCount || 0) * 0.3);
+  const reqRescue = ws >= 10 ? 3 : 2;
+  return {
+    areaKm2, hectares, buildingFactor,
+    pump: reqPump, tank: reqTank, heli: reqHeli,
+    ambulance: reqAmbulance, rescue: reqRescue, command: 1,
+    windCritical: ws >= 7, extremeWind: ws >= 11,
+  };
+}
+
+//==================== Claude Opus 4.8 호출 (Cloudflare Worker 경유) ====================
+async function callClaude(prompt, systemPrompt) {
+  const key = document.getElementById('claudeKey').value.trim();
+  if (!key) throw new Error('Claude API 키가 설정되지 않았습니다.');
+
+  const baseUrl = document.getElementById('apiBase').value.trim().replace(/\/$/, '');
+  const workerUrl = document.getElementById('workerUrl').value.trim().replace(/\/$/, '');
+  const model = document.getElementById('modelName').value.trim() || 'claude-sonnet-4-6';
+
+  if (!workerUrl) throw new Error('Cloudflare Worker URL이 설정되지 않았습니다.');
+
+  // Cloudflare Worker 경유: {workerUrl}/v1/messages?base={baseUrl}
+  const finalUrl = `${workerUrl}/v1/messages?base=${encodeURIComponent(baseUrl)}`;
+  log(`Claude Opus 4.8 호출: ${workerUrl} → ${baseUrl}`);
+
+  // Synterolink 공식 권장: Authorization: Bearer (x-api-key 아님)
+  const res = await fetch(finalUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + key,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: model,
+      max_tokens: 2000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Claude API 오류 ${res.status}: ${err.slice(0,300)}`);
+  }
+  const data = await res.json();
+  if (data.content && data.content[0]) return data.content[0].text;
+  if (data.choices && data.choices[0]) return data.choices[0].message.content;
+  if (data.message) return data.message;
+  throw new Error('응답 파싱 실패: ' + JSON.stringify(data).slice(0,200));
+}
+
+//==================== 메인 분석 ====================
+async function runAnalysis() {
+  const btn = document.getElementById('analyzeBtn');
+  btn.disabled = true;
+  document.getElementById('loading').classList.add('active');
+  try {
+    const fp = state.firePoint;
+    if (!fp) throw new Error('발화지점을 먼저 선택하세요.');
+
+    document.getElementById('loadingText').textContent = '🌬️ 풍향·풍속 데이터 수신 중...';
+    log('1/5 기상 데이터 수집...');
+    const weather = await fetchWeather(fp.lat, fp.lng);
+    state.weather = weather;
+
+    document.getElementById('loadingText').textContent = '🔥 확산 영역 계산 중...';
+    log('2/5 확산 시뮬레이션...');
+    const spread = drawSpread(weather);
+
+    document.getElementById('loadingText').textContent = '🚒 가용 소방자원 탐색 중...';
+    log('3/5 가용 자원 분석...');
+    const resources = await findResources(fp.lat, fp.lng);
+    drawResources(resources);
+
+    document.getElementById('loadingText').textContent = '🏘️ 확산경로 건물 분석 중...';
+    log('4/5 확산경로 시설 분석...');
+    const buildings = await analyzeBuildingsInPath(fp.lat, fp.lng, weather);
+
+    const required = calcRequiredResources(weather, spread, buildings);
+    log(`필요제원: 펌프 ${required.pump} · 물탱크 ${required.tank} · 헬기 ${required.heli} · 구급 ${required.ambulance}`, 'ok');
+
+    document.getElementById('loadingText').textContent = '🧠 Claude Opus 4.8 종합 분석 중...';
+    log('5/5 Claude Opus 4.8 종합 판단...');
+    const context = document.getElementById('fireContext').value;
+    const prompt = `
+[현재 산불 상황]
+- 발화지점: 위도 ${fp.lat.toFixed(5)}, 경도 ${fp.lng.toFixed(5)}
+- 발생시각: ${new Date().toLocaleString('ko-KR')}
+- 추가정보: ${context || '미입력'}
+
+[기상 (출처: ${weather.source === 'kma' ? '기상청 단기예보 API' : '샘플데이터'})]
+- 풍속: ${weather.windSpeed.toFixed(1)} m/s
+- 풍향: ${weather.windDir.toFixed(0)}° (불어오는 방향)
+- 확산방향: ${((weather.windDir+180)%360).toFixed(0)}°
+- 기온: ${weather.temp}°C, 습도: ${weather.humidity}%
+- 강수: ${weather.precipitation}mm
+
+[확산 예측]
+- 1시간: ${spread[2].distM}m, 3시간: ${spread[1].distM}m, 6시간: ${spread[0].distM}m
+- 확산속도(ROS): ${spread[0].ROS} m/min
+
+[확산경로 영향 시설]
+- 학교 ${buildings.schoolCount}곳 (예: ${buildings.sampleSchools.join(', ') || '없음'})
+- 주거시설 ${buildings.residenceCount}곳
+- 산업/창고 ${buildings.factoryCount}곳
+
+[가용 소방 자원 (15km 내)]
+- 소방서/안전센터 ${resources.fireStations.length}곳
+- 추정 보유: 펌프차 ${resources.fireStations.reduce((s,f)=>s+f.pumpTrucks,0)}대, 물탱크차 ${resources.fireStations.reduce((s,f)=>s+f.tankerTrucks,0)}대
+- 광역 소방헬기: ${resources.helicopters.length}대 (ETA ${resources.helicopters[0].etaMin}분)
+
+[알고리즘 산정 필요제원]
+- 3시간 예상 확산면적: ${required.areaKm2.toFixed(2)} km² (${required.hectares.toFixed(1)} ha)
+- 필요 펌프차: ${required.pump}대 / 물탱크차: ${required.tank}대
+- 필요 헬기: ${required.heli}대 / 구급차: ${required.ambulance}대 / 구조대: ${required.rescue}팀
+${required.windCritical ? '⚠️ 풍속 7m/s 초과 - 헬기 진압 필수' : ''}
+${required.extremeWind ? '🚨 풍속 11m/s 초과 - 매우심함' : ''}
+
+위 데이터를 종합하여 다음 6개 섹션을 한국어로 작성해줘:
+1. **위험단계 판단** (관심/주의/경계/심각 중 선택 + 근거)
+2. **즉시 대피 권고 대상** (확산경로상 인구밀집 시설)
+3. **접근 차단 권고 위치**
+4. **우선 투입 자원** (가용자원 대비 필요량 차이 명시)
+5. **풍속 변화 대응 시나리오**
+6. **결정권자 1줄 권고**
+`;
+    const systemPrompt = `당신은 한국 소방청 산하 산불재난 의사결정 AI입니다.
+재난안전데이터와 기상정보를 종합하여 정확하고 실무적인 판단을 내립니다.
+응답은 마크다운 형식으로 6개 섹션을 명확히 구분하고, 각 섹션은 3-5줄 이내로 간결하게 작성합니다.
+숫자와 위치 정보를 구체적으로 인용하세요.`;
+    const aiResponse = await callClaude(prompt, systemPrompt);
+    log('Claude Opus 4.8 응답 수신 완료', 'ok');
+    state.analysis = { weather, spread, resources, buildings, required, aiResponse };
+    showInfoPanel(state.analysis);
+  } catch (e) {
+    log('분석 실패: ' + e.message, 'err');
+    alert('분석 중 오류:\n' + e.message);
+  } finally {
+    btn.disabled = false;
+    document.getElementById('loading').classList.remove('active');
+  }
+}
+
+//==================== 결과 표시 ====================
+function mdToHtml(md) {
+  return md
+    .replace(/^### (.+)$/gm, '<h4>$1</h4>')
+    .replace(/^## (.+)$/gm, '<h3 style="color:var(--accent-2);margin:10px 0 4px;font-size:13px;">$1</h3>')
+    .replace(/^# (.+)$/gm, '<h3 style="color:var(--accent-2);">$1</h3>')
+    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*?<\/li>\n?)+/gs, m => '<ul>' + m + '</ul>')
+    .replace(/\n\n/g, '<br>')
+    .replace(/\n/g, '<br>');
+}
+
+function showInfoPanel(a) {
+  const w = a.weather, r = a.required, res = a.resources, b = a.buildings;
+  const html = `
+    <div class="section">
+      <div class="kv"><span>발화지점</span><span>${state.firePoint.lat.toFixed(4)}, ${state.firePoint.lng.toFixed(4)}</span></div>
+      <div class="kv"><span>데이터 출처</span><span>${w.source === 'kma' ? '기상청 실황' : w.source === 'sample' ? '샘플데이터' : '대체값'}</span></div>
+      <div class="kv"><span>AI 모델</span><span>Claude Opus 4.8</span></div>
+    </div>
+    <div class="section">
+      <h3>🌬️ 기상 조건</h3>
+      <div class="kv"><span>풍속</span><span><b>${w.windSpeed.toFixed(1)} m/s</b> ${r.extremeWind?'<span class="pill danger">매우강함</span>':r.windCritical?'<span class="pill warn">강함</span>':'<span class="pill ok">보통</span>'}</span></div>
+      <div class="kv"><span>풍향</span><span>${w.windDir.toFixed(0)}° → 확산 ${((w.windDir+180)%360).toFixed(0)}°</span></div>
+      <div class="kv"><span>기온/습도</span><span>${w.temp}°C / ${w.humidity}%</span></div>
+    </div>
+    <div class="section">
+      <h3>🔥 확산 예측</h3>
+      <div class="kv"><span>1h 최대거리</span><span>${a.spread[2].distM}m</span></div>
+      <div class="kv"><span>3h 최대거리</span><span>${a.spread[1].distM}m</span></div>
+      <div class="kv"><span>6h 최대거리</span><span>${a.spread[0].distM}m</span></div>
+      <div class="kv"><span>3h 확산면적</span><span><b>${r.areaKm2.toFixed(2)} km²</b> (${r.hectares.toFixed(1)} ha)</span></div>
+    </div>
+    <div class="section">
+      <h3>🏘️ 확산경로 영향</h3>
+      <div class="kv"><span>학교</span><span>${b.schoolCount}곳</span></div>
+      <div class="kv"><span>주거시설</span><span>${b.residenceCount}곳</span></div>
+      <div class="kv"><span>산업/창고</span><span>${b.factoryCount}곳</span></div>
+    </div>
+    <div class="section">
+      <h3>🚒 필요 vs 가용 자원</h3>
+      <div class="kv"><span>펌프차</span><span>필요 <b>${r.pump}</b> / 가용 ${res.fireStations.reduce((s,f)=>s+f.pumpTrucks,0)}</span></div>
+      <div class="kv"><span>물탱크차</span><span>필요 <b>${r.tank}</b> / 가용 ${res.fireStations.reduce((s,f)=>s+f.tankerTrucks,0)}</span></div>
+      <div class="kv"><span>소방헬기</span><span>필요 <b>${r.heli}</b> / 가용 ${res.helicopters.length}</span></div>
+      <div class="kv"><span>구급차</span><span>필요 <b>${r.ambulance}</b></span></div>
+      <div class="kv"><span>구조대</span><span>필요 <b>${r.rescue}</b>팀</span></div>
+    </div>
+    <div class="section">
+      <h3>🧠 Claude Opus 4.8 종합 판단</h3>
+      <div style="line-height:1.6;">${mdToHtml(a.aiResponse)}</div>
+    </div>
+    <div class="section" style="text-align:center;">
+      <button class="secondary" onclick="document.getElementById('infoPanel').classList.remove('visible')" style="width:100%;">접기</button>
+    </div>
+  `;
+  document.getElementById('infoContent').innerHTML = html;
+  document.getElementById('infoPanel').classList.add('visible');
+}
+
+function exportReport() {
+  if (!state.analysis) { alert('먼저 분석을 실행하세요.'); return; }
+  const a = state.analysis;
+  const w = a.weather, r = a.required, res = a.resources;
+  const md = `# 🔥 산불 확산 예측 보고서 (Claude Opus 4.8)
+생성: ${new Date().toLocaleString('ko-KR')}
+
+## 발화 정보
+- 위치: ${state.firePoint.lat.toFixed(5)}, ${state.firePoint.lng.toFixed(5)}
+- 데이터 출처: ${w.source}
+
+## 기상 조건
+- 풍속: ${w.windSpeed.toFixed(1)} m/s
+- 풍향: ${w.windDir.toFixed(0)}° (확산방향: ${((w.windDir+180)%360).toFixed(0)}°)
+- 기온/습도: ${w.temp}°C / ${w.humidity}%
+
+## 확산 예측
+- 1시간: ${a.spread[2].distM}m / 3시간: ${a.spread[1].distM}m / 6시간: ${a.spread[0].distM}m
+- 3시간 확산면적: ${r.areaKm2.toFixed(2)} km²
+
+## 필요 자원
+- 펌프차 ${r.pump}대, 물탱크차 ${r.tank}대, 헬기 ${r.heli}대
+- 구급차 ${r.ambulance}대, 구조대 ${r.rescue}팀
+
+## 가용 소방서
+${res.fireStations.map(f=>`- ${f.name} (${f.distKm.toFixed(1)}km, ETA ${f.etaMin.toFixed(0)}분) 펌프 ${f.pumpTrucks}, 물탱크 ${f.tankerTrucks}`).join('\n')}
+
+## Claude Opus 4.8 AI 분석
+${a.aiResponse}
+
+---
+본 보고서는 제4회 재난안전데이터 활용 창업경진대회 출품작에서 생성되었습니다.
+`;
+  const blob = new Blob([md], { type: 'text/markdown' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `산불분석_${Date.now()}.md`;
+  link.click();
+  log('보고서 다운로드 완료', 'ok');
+}
+
+function clearAll() {
+  if (state.fireMarker) state.fireMarker.setMap(null);
+  state.spreadCircles.forEach(c => c.setMap(null));
+  state.resourceMarkers.forEach(m => m.setMap(null));
+  if (state.arrowOverlay) state.arrowOverlay.setMap(null);
+  state.firePoint = null; state.weather = null; state.analysis = null;
+  document.getElementById('coordDisplay').textContent = '위치를 선택하세요';
+  document.getElementById('infoPanel').classList.remove('visible');
+  log('초기화 완료');
+  updateApiStatus();
+}
+
+//==================== 시작 ====================
+window.addEventListener('DOMContentLoaded', () => {
+  loadKeys();
+  document.getElementById('claudeKey').addEventListener('input', updateApiStatus);
+  loadGoogleMaps();
+});
+</script>
+
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
