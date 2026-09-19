@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UPROOTY MRV | 키르기스스탄 소수력 국제탄소감축 대시보드</title>
+<style>
+  :root{
+    --bg:#0a1628; --panel:#0f2038; --panel2:#13283f; --line:#1f3a56;
+    --accent:#22d3a5; --accent2:#3b82f6; --amber:#f5b642; --text:#e7f0f7;
+    --muted:#8fa8bf; --danger:#ef6b6b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',-apple-system,'Malgun Gothic',sans-serif;
+       background:linear-gradient(160deg,#08111f,#0a1628 55%,#0c1c30);
+       color:var(--text);line-height:1.5;min-height:100vh}
+  a{color:var(--accent)}
+  header{padding:26px 5vw 18px;border-bottom:1px solid var(--line);
+         display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}
+  .brand{display:flex;align-items:center;gap:14px}
+  .logo{width:46px;height:46px;border-radius:12px;
+        background:linear-gradient(135deg,var(--accent),var(--accent2));
+        display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;color:#04121f}
+  .brand h1{font-size:18px;letter-spacing:.5px}
+  .brand p{font-size:12px;color:var(--muted)}
+  .live{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 0 rgba(34,211,165,.6);animation:pulse 1.8s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,211,165,.55)}70%{box-shadow:0 0 0 10px rgba(34,211,165,0)}100%{box-shadow:0 0 0 0 rgba(34,211,165,0)}}
+  main{padding:26px 5vw 60px}
+  .hero{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px 24px;margin-bottom:22px;
+        display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+  .hero h2{font-size:22px;margin-bottom:6px}
+  .hero .sub{color:var(--muted);font-size:14px;max-width:640px}
+  .site-meta{font-size:12px;color:var(--muted);text-align:right;line-height:1.7}
+  .site-meta b{color:var(--text)}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-bottom:24px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 20px;position:relative;overflow:hidden}
+  .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent)}
+  .kpi.blue::before{background:var(--accent2)} .kpi.amber::before{background:var(--amber)}
+  .kpi .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+  .kpi .val{font-size:30px;font-weight:800;margin:6px 0 2px}
+  .kpi .unit{font-size:13px;color:var(--muted)}
+  .grid{display:grid;grid-template-columns:1.6fr 1fr;gap:22px}
+  @media(max-width:920px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin-bottom:22px}
+  .card h3{font-size:15px;margin-bottom:4px}
+  .card .desc{font-size:12px;color:var(--muted);margin-bottom:16px}
+  .param-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px dashed var(--line)}
+  .param-row:last-child{border-bottom:none}
+  .param-row label{font-size:13px;color:var(--muted)}
+  .param-row .in{display:flex;align-items:center;gap:8px}
+  input[type=number]{width:110px;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+                     border-radius:8px;padding:7px 10px;font-size:14px;text-align:right}
+  input[type=number]:focus{outline:none;border-color:var(--accent)}
+  .u{font-size:12px;color:var(--muted);min-width:64px}
+  .btn{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#04121f;border:none;
+       padding:11px 18px;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;margin-top:14px;width:100%}
+  .btn:hover{filter:brightness(1.08)}
+  .chart-wrap{position:relative;height:260px;margin-top:6px}
+  canvas{width:100%;height:100%}
+  .tbl-wrap{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:12px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:9px 12px;text-align:right;white-space:nowrap}
+  th{position:sticky;top:0;background:var(--panel2);color:var(--muted);font-weight:600;text-align:right;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
+  tbody tr:hover{background:rgba(34,211,165,.06)}
+  td.cr{color:var(--accent);font-weight:600}
+  .rev-box{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:14px;text-align:center}
+  .rev-box .big{font-size:32px;font-weight:800;color:var(--amber)}
+  .rev-box .lbl{font-size:12px;color:var(--muted)}
+  .flow{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+  .step{flex:1;min-width:100px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center;font-size:11px}
+  .step b{display:block;color:var(--accent);font-size:12px;margin-bottom:2px}
+  .note{font-size:11px;color:var(--muted);margin-top:14px;line-height:1.7}
+  footer{padding:24px 5vw;border-top:1px solid var(--line);font-size:11px;color:var(--muted);line-height:1.8}
+  .tag{display:inline-block;background:rgba(34,211,165,.12);color:var(--accent);border:1px solid rgba(34,211,165,.3);
+       padding:2px 9px;border-radius:20px;font-size:11px;margin-left:6px}
+  .badge{font-size:11px;color:var(--amber);border:1px solid var(--amber);border-radius:6px;padding:2px 7px}
+
+  /* ---- Verra Roadmap ---- */
+  .road-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:6px}
+  .progress-outer{flex:1;min-width:200px;height:12px;background:var(--panel2);border:1px solid var(--line);border-radius:20px;overflow:hidden}
+  .progress-inner{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0;transition:width .5s}
+  .progress-txt{font-size:13px;color:var(--muted)}
+  .phase{margin-top:20px}
+  .phase-title{font-size:13px;font-weight:700;color:var(--accent);margin-bottom:2px;display:flex;align-items:center;gap:8px}
+  .phase-title .pn{width:22px;height:22px;border-radius:50%;background:rgba(34,211,165,.15);border:1px solid var(--accent);
+                   display:flex;align-items:center;justify-content:center;font-size:12px}
+  .phase-sub{font-size:11px;color:var(--muted);margin:0 0 10px 30px}
+  .task{display:flex;align-items:flex-start;gap:12px;padding:11px 14px;margin:0 0 8px 30px;
+        background:var(--panel2);border:1px solid var(--line);border-radius:10px;cursor:pointer;transition:.15s}
+  .task:hover{border-color:var(--accent2)}
+  .task.done{opacity:.62;border-color:rgba(34,211,165,.4)}
+  .chk{width:20px;height:20px;border-radius:6px;border:2px solid var(--muted);flex-shrink:0;margin-top:1px;
+       display:flex;align-items:center;justify-content:center;font-size:13px;color:#04121f;transition:.15s}
+  .task.done .chk{background:var(--accent);border-color:var(--accent)}
+  .task-body{flex:1}
+  .task-body .t{font-size:13px;font-weight:600}
+  .task.done .task-body .t{text-decoration:line-through}
+  .task-body .d{font-size:11px;color:var(--muted);margin-top:2px}
+  .task .st{font-size:10px;padding:2px 8px;border-radius:20px;white-space:nowrap;align-self:center}
+  .st.done{background:rgba(34,211,165,.15);color:var(--accent);border:1px solid rgba(34,211,165,.4)}
+  .st.prog{background:rgba(245,182,66,.14);color:var(--amber);border:1px solid rgba(245,182,66,.4)}
+  .st.todo{background:rgba(143,168,191,.12);color:var(--muted);border:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">UY</div>
+    <div>
+      <h1>UPROOTY · AI-MRV 탄소감축 대시보드</h1>
+      <p>재생에너지 기반 국제탄소감축 통합 운영 솔루션 (Measurement · Reporting · Verification)</p>
+    </div>
+  </div>
+  <div class="live"><span class="dot"></span> 실시간 모니터링 · 5분 간격 자동 수집</div>
+</header>
+
+<main>
+  <section class="hero">
+    <div>
+      <h2>키르기스스탄 소수력 발전 MRV <span class="tag">Article 6 · Verra VCS</span></h2>
+      <p class="sub">유수식 소수력 발전소의 월간 발전 데이터를 수집·측정하여 감축량(tCO₂)과 국제 탄소배출권 예상 수익을 자동 산정합니다. 아래 데이터는 최근 30일 시뮬레이션 실측값입니다.</p>
+    </div>
+    <div class="site-meta">
+      발전소 · <b>UPY-ECO Sokuluk SHPP</b><br>
+      위치 · <b>키르기스스탄 소콜록 (42.7027°N, 74.2481°E)</b><br>
+      설비용량 · <b>9.7 MW</b> (시간당 최대 9.7 MWh)<br>
+      계통 · <b>On-Grid PPA</b> · 배출계수 기준 <b>키르기스스탄</b>
+    </div>
+  </section>
+
+  <section class="kpis">
+    <div class="kpi">
+      <div class="label">월간 총 발전량</div>
+      <div class="val" id="kpiGen">–</div>
+      <div class="unit">MWh (최근 30일)</div>
+    </div>
+    <div class="kpi blue">
+      <div class="label">평균 가동률</div>
+      <div class="val" id="kpiCF">–</div>
+      <div class="unit">Capacity Factor</div>
+    </div>
+    <div class="kpi">
+      <div class="label">월간 탄소감축량</div>
+      <div class="val" id="kpiCO2">–</div>
+      <div class="unit">tCO₂ (배출권 발행 대상)</div>
+    </div>
+    <div class="kpi amber">
+      <div class="label">예상 배출권 수익</div>
+      <div class="val" id="kpiRev">–</div>
+      <div class="unit">백만원 / 월</div>
+    </div>
+  </section>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h3>일별 발전량 & 감축량 <span class="badge">30 DAYS</span></h3>
+        <p class="desc">일별 발전량(MWh, 막대) 대비 산정 감축량(tCO₂, 선)을 표시합니다. 소수력 특성상 계절·수량 변동이 반영됩니다.</p>
+        <div class="chart-wrap"><canvas id="chart"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>일별 MRV 로그 (측정 · 보고 · 인증)</h3>
+        <p class="desc">배출계수 × 발전량 → 감축량(tCO₂) 자동 산정. VT0011 방법론 매핑 기준.</p>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>일자</th><th>발전량(MWh)</th><th>가동률(%)</th><th>감축량(tCO₂)</th><th>수익(₩)</th></tr></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <h3>MRV 산정 파라미터</h3>
+        <p class="desc">값을 조정하면 감축량·수익이 즉시 재계산됩니다.</p>
+        <div class="param-row"><label>설비용량</label><div class="in"><input type="number" id="pCap" value="9.7" step="0.1"><span class="u">MW</span></div></div>
+        <div class="param-row"><label>배출계수 (키르기스스탄)</label><div class="in"><input type="number" id="pEF" value="0.30" step="0.01"><span class="u">tCO₂/MWh</span></div></div>
+        <div class="param-row"><label>배출권 단가</label><div class="in"><input type="number" id="pPrice" value="30000" step="1000"><span class="u">원/tCO₂</span></div></div>
+        <div class="param-row"><label>수익 배분율 (당사)</label><div class="in"><input type="number" id="pShare" value="50" step="5"><span class="u">%</span></div></div>
+        <button class="btn" id="regen">↻ 데이터 재생성 (랜덤 30일)</button>
+      </div>
+      <div class="card">
+        <h3>월간 국제탄소배출권 정산</h3>
+        <p class="desc">발전량 → tCO₂ → ITMO 전환 → 수익 배분</p>
+        <div class="rev-box"><div class="lbl">월간 발행 배출권</div><div class="big" id="revCredits">–</div><div class="lbl">tCO₂ · Verra VCU → Article 6.2 ITMO</div></div>
+        <div class="rev-box"><div class="lbl">당사 귀속 예상 수익 (배분 후)</div><div class="big" id="revNet">–</div><div class="lbl">원 / 월 · 연환산 <span id="revYear">–</span></div></div>
+        <div class="flow">
+          <div class="step"><b>1 수집</b>5분 간격 IoT</div>
+          <div class="step"><b>2 측정</b>배출계수 산정</div>
+          <div class="step"><b>3 Verra</b>VCS 매핑</div>
+          <div class="step"><b>4 발행</b>VCU→ITMO</div>
+          <div class="step"><b>5 배분</b>수익 정산</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VERRA 판매 실행 로드맵 ============ -->
+  <div class="card">
+    <div class="road-head">
+      <div>
+        <h3>Verra(VCS) 배출권 발행·판매 실행 로드맵 <span class="tag">체크리스트</span></h3>
+        <p class="desc" style="margin-bottom:0">발전 데이터가 실제로 팔리는 배출권(VCU)이 되기까지의 전 과정입니다. 항목을 클릭하면 완료 처리되고 진행률이 갱신됩니다. (진행 상태는 브라우저에 저장)</p>
+      </div>
+    </div>
+    <div class="road-head" style="margin-top:12px">
+      <div class="progress-outer"><div class="progress-inner" id="progBar"></div></div>
+      <div class="progress-txt" id="progTxt">0 / 0 완료</div>
+    </div>
+
+    <!-- Phase 1 -->
+    <div class="phase">
+      <div class="phase-title"><span class="pn">1</span> 사업 설계 · 방법론 선정 (Project Design)</div>
+      <p class="phase-sub">Verra 공식 절차 STEP 1 — 방법론 선정 후 PDD(사업계획서) 작성, 파이프라인 등재 및 30일 공개 의견수렴</p>
+      <div id="ph1"></div>
+    </div>
+    <!-- Phase 2 -->
+    <div class="phase">
+      <div class="phase-title"><span class="pn">2</span> 검증기관(VVB) 사업 타당성확인 · 등록 (Validation & Registration)</div>
+      <p class="phase-sub">Verra 공식 절차 STEP 2 — 제3자 VVB가 사업을 타당성확인(Validation)하고 Verra 레지스트리에 사업 등록</p>
+      <div id="ph2"></div>
+    </div>
+    <!-- Phase 3 -->
+    <div class="phase">
+      <div class="phase-title"><span class="pn">3</span> 모니터링 · 검증 (Monitoring & Verification)</div>
+      <p class="phase-sub">Verra 공식 절차 STEP 3 — MRV로 감축량을 모니터링·보고하고 VVB가 실적을 검증(Verification)</p>
+      <div id="ph3"></div>
+    </div>
+    <!-- Phase 4 -->
+    <div class="phase">
+      <div class="phase-title"><span class="pn">4</span> Verra 심사 · VCU 발행 (Review & Issuance)</div>
+      <p class="phase-sub">Verra 공식 절차 STEP 4~5 — Verra 품질심사(RBA) 통과 후 레지스트리 계정으로 VCU(배출권) 발행</p>
+      <div id="ph4"></div>
+    </div>
+    <!-- Phase 5 -->
+    <div class="phase">
+      <div class="phase-title"><span class="pn">5</span> Article 6 승인 · 상응조정 (Authorization & CA)</div>
+      <p class="phase-sub">국가 간 이전(ITMO) 판매 시 — 대상국 정부 승인서(LoA)와 상응조정으로 이중계산 방지, Verra 'Article 6 라벨' 부여</p>
+      <div id="ph5"></div>
+    </div>
+    <!-- Phase 6 -->
+    <div class="phase">
+      <div class="phase-title"><span class="pn">6</span> 판매 · 대금 정산 (Sales & Settlement)</div>
+      <p class="phase-sub">수요처와 계약(선도/장내/장외) 후 배출권 이전 및 수익 배분 — 국내 K-ETS·RE100, CORSIA 항공, 자발적시장</p>
+      <div id="ph6"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>배출계수 산정 근거 · Emission Factor Basis</h3>
+    <p class="note">
+      <b>기본값 0.30 tCO₂/MWh</b>는 당사 사업계획서(BUSINESS PLAN 2026, p.8)에서 채택한 <b>보수적 계통 배출계수</b>입니다.
+      키르기스스탄 전력 계통은 2024년 기준 저탄소(수력 중심) 발전 비중이 약 <b>88.8%</b>, 화석연료 약 11.2%로 구성됩니다
+      (출처: Worldometer / U.S. EIA International Energy Statistics, 2024). 국제감축(Article 6 · Verra) 사업의 베이스라인 배출계수는
+      통상 <b>결합마진(Combined Margin, ACM0002/VT0011)</b> 방식으로 산정되며, 한계발전(화력) 대체 효과를 반영해 계통 평균 배출강도보다 높게 형성됩니다.
+      실제 크레딧 발행 시에는 IGES List of Grid Emission Factors(v11.6, 2025) 및 대상국 정부 승인 배출계수를 적용하여 확정합니다.
+    </p>
+  </div>
+</main>
+
+<footer>
+  ㈜업루트와이 (UPROOTY) · AI-MRV 탄소감축 시스템 · info@upy.co.kr · uprooty.net<br>
+  Verra 절차 출처 · Verra 공식 "Develop a VCS Project" 5단계(방법론·PDD→파이프라인 등재→VVB Validation→등록→모니터링→VVB Verification→Verra 심사(RBA)→VCU 발행) · Verra Validation/Verification · Verra Article 6 & CORSIA Label Guidance(상응조정 라벨)<br>
+  배출계수 출처 · 사업계획서 p.8(0.30 tCO₂/MWh) / Worldometer·EIA(2024) / IGES List of Grid Emission Factors v11.6(2025) · 배출권 단가 3만원/tCO₂: Article 6.2 ITMO 대비 보수 적용<br>
+  ※ 발전·감축·수익 수치 및 로드맵 상태는 데모용이며, 실제 크레딧 발행 실적과 다를 수 있습니다.
+</footer>
+
+<script>
+/* ================= MRV 데이터 ================= */
+let days = [];
+function P(){return{
+  cap:parseFloat(pCap.value)||9.7, ef:parseFloat(pEF.value)||0.30,
+  price:parseFloat(pPrice.value)||30000, share:(parseFloat(pShare.value)||50)/100 };}
+const pCap=document.getElementById('pCap'),pEF=document.getElementById('pEF'),
+      pPrice=document.getElementById('pPrice'),pShare=document.getElementById('pShare');
+
+function generate(){
+  const p=P(); days=[]; const today=new Date(); const base=0.62;
+  for(let i=29;i>=0;i--){
+    const d=new Date(today); d.setDate(today.getDate()-i);
+    let cf=base+0.08*Math.sin((i/29)*Math.PI*1.2)+(Math.random()-0.5)*0.22;
+    cf=Math.max(0.28,Math.min(0.95,cf));
+    const mwh=p.cap*24*cf, co2=mwh*p.ef, rev=co2*p.price;
+    days.push({date:`${d.getMonth()+1}/${String(d.getDate()).padStart(2,'0')}`,
+      mwh:+mwh.toFixed(1),cf:+(cf*100).toFixed(1),co2:+co2.toFixed(2),rev:Math.round(rev)});
+  } render();
+}
+function recompute(){const p=P();days.forEach(x=>{x.co2=+(x.mwh*p.ef).toFixed(2);x.rev=Math.round(x.co2*p.price);});render();}
+const fmt=n=>n.toLocaleString('ko-KR');
+function render(){
+  const p=P();
+  const totGen=days.reduce((s,x)=>s+x.mwh,0),totCO2=days.reduce((s,x)=>s+x.co2,0),
+        totRev=days.reduce((s,x)=>s+x.rev,0),avgCF=days.reduce((s,x)=>s+x.cf,0)/days.length,
+        netRev=totRev*p.share;
+  kpiGen.textContent=fmt(Math.round(totGen)); kpiCF.textContent=avgCF.toFixed(1)+'%';
+  kpiCO2.textContent=fmt(Math.round(totCO2)); kpiRev.textContent=(netRev/1e6).toFixed(1);
+  revCredits.textContent=fmt(Math.round(totCO2)); revNet.textContent=fmt(Math.round(netRev))+'원';
+  revYear.textContent=(netRev*12/1e8).toFixed(2)+'억원';
+  tbody.innerHTML=days.map(x=>`<tr><td>${x.date}</td><td>${fmt(x.mwh)}</td><td>${x.cf}</td><td class="cr">${x.co2.toFixed(2)}</td><td>${fmt(x.rev)}</td></tr>`).join('');
+  drawChart();
+}
+const kpiGen=document.getElementById('kpiGen'),kpiCF=document.getElementById('kpiCF'),
+      kpiCO2=document.getElementById('kpiCO2'),kpiRev=document.getElementById('kpiRev'),
+      revCredits=document.getElementById('revCredits'),revNet=document.getElementById('revNet'),
+      revYear=document.getElementById('revYear'),tbody=document.getElementById('tbody');
+
+function drawChart(){
+  const c=document.getElementById('chart'),dpr=window.devicePixelRatio||1;
+  const w=c.clientWidth,h=c.clientHeight; c.width=w*dpr;c.height=h*dpr;
+  const ctx=c.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);
+  const padL=44,padR=44,padT=16,padB=26,cw=w-padL-padR,ch=h-padT-padB;
+  const maxMwh=Math.max(...days.map(x=>x.mwh))*1.1,maxCo2=Math.max(...days.map(x=>x.co2))*1.1;
+  ctx.strokeStyle='rgba(255,255,255,.06)';ctx.lineWidth=1;ctx.fillStyle='#8fa8bf';ctx.font='10px Segoe UI';ctx.textAlign='right';
+  for(let i=0;i<=4;i++){const y=padT+ch*i/4;ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(w-padR,y);ctx.stroke();ctx.fillText(Math.round(maxMwh*(1-i/4)),padL-6,y+3);}
+  ctx.textAlign='left';ctx.fillStyle='#22d3a5';
+  for(let i=0;i<=4;i++){const y=padT+ch*i/4;ctx.fillText(Math.round(maxCo2*(1-i/4)),w-padR+6,y+3);}
+  const n=days.length,bw=cw/n*0.6;
+  days.forEach((x,i)=>{const cx=padL+cw*(i+0.5)/n,bh=ch*(x.mwh/maxMwh);
+    const g=ctx.createLinearGradient(0,padT+ch-bh,0,padT+ch);g.addColorStop(0,'#3b82f6');g.addColorStop(1,'rgba(59,130,246,.25)');
+    ctx.fillStyle=g;ctx.fillRect(cx-bw/2,padT+ch-bh,bw,bh);});
+  ctx.strokeStyle='#22d3a5';ctx.lineWidth=2;ctx.beginPath();
+  days.forEach((x,i)=>{const cx=padL+cw*(i+0.5)/n,cy=padT+ch*(1-x.co2/maxCo2);i?ctx.lineTo(cx,cy):ctx.moveTo(cx,cy);});ctx.stroke();
+  days.forEach((x,i)=>{const cx=padL+cw*(i+0.5)/n,cy=padT+ch*(1-x.co2/maxCo2);ctx.fillStyle='#22d3a5';ctx.beginPath();ctx.arc(cx,cy,2.2,0,7);ctx.fill();});
+  ctx.fillStyle='#8fa8bf';ctx.textAlign='center';
+  days.forEach((x,i)=>{if(i%5===0){const cx=padL+cw*(i+0.5)/n;ctx.fillText(x.date,cx,h-8);}});
+}
+
+/* ================= VERRA 로드맵 ================= */
+/* status: done(완료) / prog(진행중) / todo(예정) — 사업계획서 기준 초기값 */
+const ROADMAP={
+  ph1:[
+    {id:'m1',t:'방법론 선정 (VT0011 계통 배출계수 / ACM0002 재생에너지)',d:'수력 발전량→계통 배출계수 기반 감축량 산정 방법론 확정',s:'done'},
+    {id:'m2',t:'PDD(사업계획서) 초안 작성',d:'베이스라인·추가성·모니터링 계획 포함 Project Description 작성',s:'prog'},
+    {id:'m3',t:'Verra 레지스트리 계정 개설 및 파이프라인 등재 신청',d:"2026.09월 진행 예정 — 등재 시 30일 공개 의견수렴 개시",s:'prog'},
+    {id:'m4',t:'30일 공개 의견수렴(Public Comment) 대응',d:'이해관계자 의견 접수 및 반영',s:'todo'}
+  ],
+  ph2:[
+    {id:'m5',t:'승인된 VVB(제3자 검증기관) 선정·계약',d:'Verra 승인 Validation/Verification Body 지정',s:'todo'},
+    {id:'m6',t:'VVB 사업 타당성확인(Validation) 수행',d:'PDD가 Verra 규칙·요건 충족하는지 심사',s:'todo'},
+    {id:'m7',t:'Verra 사업 등록(Registration) 완료',d:'Validation 완료 후 레지스트리에 프로젝트 정식 등록',s:'todo'}
+  ],
+  ph3:[
+    {id:'m8',t:'AI-MRV 시스템으로 발전량 자동 모니터링',d:'5분 간격 IoT 스마트미터 수집 · 오차율 <3%',s:'prog'},
+    {id:'m9',t:'모니터링 리포트 작성 (감축량 tCO₂ 보고)',d:'모니터링 기간별 발전량×배출계수 감축 실적 정리',s:'todo'},
+    {id:'m10',t:'VVB 감축실적 검증(Verification)',d:'실제 발생한 감축량을 제3자가 검증',s:'todo'}
+  ],
+  ph4:[
+    {id:'m11',t:'Verra 검증승인 요청 및 품질심사(RBA)',d:'Verra 위험기반 심사(Risk-Based Approach) 통과',s:'todo'},
+    {id:'m12',t:'VCU 발행 요청 및 레지스트리 계정 수령',d:'승인 후 Verified Carbon Unit(배출권) 발행 — 현재 발행 실적 0건',s:'todo'}
+  ],
+  ph5:[
+    {id:'m13',t:'대상국(키르기스스탄) 정부 승인서(LoA) 확보',d:'에너지부·수자원농업부 LoI 기반 Article 6 authorization',s:'prog'},
+    {id:'m14',t:'상응조정(Corresponding Adjustment) 처리',d:'국가 간 이중계산 방지 — Verra "Article 6" 라벨 부여',s:'todo'},
+    {id:'m15',t:'VCU → ITMO 전환 및 이전 준비',d:'Article 6.2 국가 간 이전 실적으로 전환',s:'todo'}
+  ],
+  ph6:[
+    {id:'m16',t:'수요처 확보 · 구매계약 체결',d:'국내 K-ETS 할당업체 700사 / RE100 36사 / CORSIA 항공 / 스위스 등',s:'prog'},
+    {id:'m17',t:'판매 방식 결정 (선도거래 / 장내 ETS / 장외 OTC)',d:'선도판매·거래소 상장·장외 매각 중 선택',s:'todo'},
+    {id:'m18',t:'배출권 이전(retire/transfer) 및 대금 수취',d:'레지스트리 상 소유권 이전 후 대금 정산',s:'todo'},
+    {id:'m19',t:'수익 배분 (발전사업자 5:5) 및 설비 재투자',d:'파트너 배분 후 신규 설비 확장 순환 구조',s:'todo'}
+  ]
+};
+const STORE='upy_verra_roadmap';
+function loadState(){try{return JSON.parse(localStorage.getItem(STORE))||{};}catch(e){return{};}}
+function saveState(s){localStorage.setItem(STORE,JSON.stringify(s));}
+let state=loadState();
+
+function buildRoadmap(){
+  Object.keys(ROADMAP).forEach(ph=>{
+    const box=document.getElementById(ph);
+    box.innerHTML=ROADMAP[ph].map(task=>{
+      const done = state[task.id] !== undefined ? state[task.id] : (task.s==='done');
+      const stTxt = done?'완료':(task.s==='prog'?'진행중':'예정');
+      const stCls = done?'done':(task.s==='prog'?'prog':'todo');
+      return `<div class="task ${done?'done':''}" data-id="${task.id}">
+        <div class="chk">${done?'✓':''}</div>
+        <div class="task-body"><div class="t">${task.t}</div><div class="d">${task.d}</div></div>
+        <div class="st ${done?'done':stCls}">${done?'완료':stTxt}</div></div>`;
+    }).join('');
+  });
+  document.querySelectorAll('.task').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const id=el.dataset.id, cur=el.classList.contains('done');
+      state[id]=!cur; saveState(state); buildRoadmap();
+    });
+  });
+  updateProgress();
+}
+function updateProgress(){
+  let all=0,done=0;
+  Object.keys(ROADMAP).forEach(ph=>ROADMAP[ph].forEach(t=>{
+    all++; const d=state[t.id]!==undefined?state[t.id]:(t.s==='done'); if(d)done++;
+  }));
+  const pct=Math.round(done/all*100);
+  document.getElementById('progBar').style.width=pct+'%';
+  document.getElementById('progTxt').textContent=`${done} / ${all} 완료 (${pct}%)`;
+}
+
+/* ================= 이벤트 ================= */
+document.getElementById('regen').addEventListener('click',generate);
+pCap.addEventListener('input',generate);
+[pEF,pPrice,pShare].forEach(el=>el.addEventListener('input',recompute));
+window.addEventListener('resize',drawChart);
+generate();
+buildRoadmap();
+</script>
+</body>
+</html>
